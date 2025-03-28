@@ -1,59 +1,78 @@
-// Import necessary libraries
+// Load environment variables from .env file
+require('dotenv').config();
+
+// Import required modules
 const express = require('express');
-const bodyParser = require('body-parser');
 const axios = require('axios');
-
-// Initialize the express app
 const app = express();
-const PORT = process.env.PORT || 3000;  // Set the port for the server
 
-// Use body parser to handle JSON data
-app.use(bodyParser.json());
+// Access the environment variables
+const squareAccessToken = process.env.SQUARE_ACCESS_TOKEN;
+const squareAppId = process.env.SQUARE_APPLICATION_ID;
+const stuartClientId = process.env.STUART_CLIENT_ID;
+const stuartClientSecret = process.env.STUART_CLIENT_SECRET;
+const stuartAccountId = process.env.STUART_ACCOUNT_ID;
 
-// Webhook route to receive Square orders
-app.post('/square-webhook', async (req, res) => {
-    const order = req.body;  // Get the order details from Square
-    console.log('Received order from Square:', order);
-
-    // Wait for 15 minutes before sending a delivery request to Stuart
-    setTimeout(async () => {
-        await createStuartDelivery(order);  // Call function to create Stuart delivery
-    }, 15 * 60 * 1000);  // 15 minutes in milliseconds
-
-    // Send a success response to Square
-    res.status(200).send('Webhook received');
+// Basic route to check if server is running
+app.get('/', (req, res) => {
+  res.send('Server is running!');
 });
 
-// Function to create a delivery with Stuart
-async function createStuartDelivery(order) {
-    const stuartApiUrl = 'https://api.stuart.com/v2/orders/';
-    const stuartApiKey = 'YOUR_STUART_API_KEY';  // Replace with your Stuart API key
-
-    const deliveryData = {
-        pickup: {
-            address: order.shipping_address,  // Replace with actual shipping address field
-            contact: order.customer
-        },
-        dropoff: {
-            address: order.shipping_address,  // Replace with customer address
-            contact: order.customer
-        }
-    };
-
-    try {
-        const response = await axios.post(stuartApiUrl, deliveryData, {
-            headers: {
-                'Authorization': Bearer ${stuartApiKey},
-                'Content-Type': 'application/json'
-            }
-        });
-        console.log('Stuart delivery created:', response.data);
-    } catch (error) {
-        console.error('Error creating Stuart delivery:', error);
+// Example: Use Square API (Square API call)
+app.get('/square-order', (req, res) => {
+  const url = `https://connect.squareup.com/v2/orders`;
+  
+  axios.post(url, {
+    headers: {
+      'Authorization': `Bearer ${squareAccessToken}`,
+      'Content-Type': 'application/json'
+    },
+    data: {
+      // Example order data here
+      order: {
+        id: "12345",
+        location_id: "your-location-id",
+        line_items: [
+          {
+            name: "Sample Item",
+            quantity: 1,
+            base_price_money: { amount: 100, currency: 'USD' }
+          }
+        ]
+      }
     }
-}
+  })
+  .then(response => {
+    console.log('Square order response:', response.data);
+    res.json(response.data);
+  })
+  .catch(error => {
+    console.error('Error making Square order:', error.response.data);
+    res.status(500).json({ error: error.response.data });
+  });
+});
 
-// Start the server and listen on the specified port
-app.listen(PORT, () => {
-    console.log(Server is running on port ${PORT});
+// Example: Use Stuart API (Create delivery)
+app.get('/stuart-delivery', (req, res) => {
+  const stuartUrl = 'https://api.stuart.com/v2/oauth/token';
+  
+  axios.post(stuartUrl, {
+    client_id: stuartClientId,
+    client_secret: stuartClientSecret,
+    grant_type: 'client_credentials'
+  })
+  .then(response => {
+    console.log('Stuart API Access Token:', response.data.access_token);
+    res.json({ accessToken: response.data.access_token });
+  })
+  .catch(error => {
+    console.error('Error getting Stuart access token:', error.response.data);
+    res.status(500).json({ error: error.response.data });
+  });
+});
+
+// Start the server and listen on a specific port
+const port = process.env.PORT || 3000;
+app.listen(port, () => {
+  console.log(`Server is running on port ${port}`);
 });
