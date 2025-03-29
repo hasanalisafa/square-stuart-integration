@@ -31,29 +31,22 @@ app.post('/webhook', (req, res) => {
     const orderId = event.data.id;
     const locationId = event.data.location_id;
 
-    // Use Square data for pickup and dropoff addresses
-    const pickupAddress = event.data.shipping_address.address; // Replace with actual Square address data
-    const pickupContact = event.data.shipping_address.contact; // Replace with actual Square contact info
-    const dropoffAddress = 'Dropoff Address';  // Replace with actual dropoff address
-    const dropoffContact = 'Dropoff Contact'; // Replace with actual dropoff contact info
-
     console.log(`Received new order: ${orderId} at location: ${locationId}`);
-    console.log(`Pickup Address: ${pickupAddress}, Dropoff Address: ${dropoffAddress}`);
 
     // Wait for 15 minutes before creating the delivery in Stuart
     setTimeout(async () => {
       try {
         console.log('15 minutes passed, requesting delivery from Stuart...');
         
-        // Prepare delivery data for Stuart
+        // Prepare delivery data for Stuart (replace with actual pickup/dropoff details)
         const deliveryData = {
           pickup: {
-            address: pickupAddress,  // Using Square pickup address
-            contact: pickupContact   // Using Square pickup contact info
+            address: 'Pickup Address',  // Replace with actual pickup address
+            contact: 'Pickup Contact'   // Replace with actual pickup contact
           },
           dropoff: {
-            address: dropoffAddress, // Using provided dropoff address
-            contact: dropoffContact  // Using provided dropoff contact info
+            address: 'Dropoff Address', // Replace with actual dropoff address
+            contact: 'Dropoff Contact'  // Replace with actual dropoff contact
           },
           order_id: orderId,  // Link delivery to the Square order
         };
