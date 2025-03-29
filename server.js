@@ -13,6 +13,9 @@ const stuartClientId = process.env.STUART_CLIENT_ID;
 const stuartClientSecret = process.env.STUART_CLIENT_SECRET;
 const stuartAccountId = process.env.STUART_ACCOUNT_ID;
 
+// Middleware to parse JSON requests
+app.use(express.json());
+
 // Basic route to check if server is running
 app.get('/', (req, res) => {
   res.send('Server is running!');
@@ -71,8 +74,30 @@ app.get('/stuart-delivery', (req, res) => {
   });
 });
 
+// Handle Square Webhook (POST request from Square)
+app.post('/webhook', (req, res) => {
+  const event = req.body; // The event body sent by Square
+  console.log('Received webhook event: ', event);
+
+  // You can handle the event based on the type (order.created, order.updated, etc.)
+  // Example: Trigger Stuart API or do something with the order data here
+  if (event.type === 'order.created') {
+    const orderId = event.data.id;
+    const locationId = event.data.location_id;
+    
+    // Call Stuart API or another action based on the order details
+    console.log(`Received new order: ${orderId} at location: ${locationId}`);
+
+    // Example: Make a delivery request (This is just a placeholder, update it as needed)
+    // If needed, you can send this data to Stuart or process it further
+  }
+
+  // Send a response back to Square indicating successful receipt of the webhook
+  res.status(200).send('Webhook received');
+});
+
 // Start the server and listen on a specific port
-const port = process.env.PORT || 3000;
+const port = process.env.PORT || 8080; // Make sure your server is running on the correct port
 app.listen(port, () => {
   console.log(`Server is running on port ${port}`);
 });
