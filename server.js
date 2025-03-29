@@ -21,79 +21,72 @@ app.get('/', (req, res) => {
   res.send('Server is running!');
 });
 
-// Example: Use Square API (Square API call)
-app.get('/square-order', (req, res) => {
-  const url = `https://connect.squareup.com/v2/orders`;
-  
-  axios.post(url, {
-    headers: {
-      'Authorization': `Bearer ${squareAccessToken}`,
-      'Content-Type': 'application/json'
-    },
-    data: {
-      // Example order data here
-      order: {
-        id: "12345",
-        location_id: "your-location-id",
-        line_items: [
-          {
-            name: "Sample Item",
-            quantity: 1,
-            base_price_money: { amount: 100, currency: 'USD' }
-          }
-        ]
-      }
-    }
-  })
-  .then(response => {
-    console.log('Square order response:', response.data);
-    res.json(response.data);
-  })
-  .catch(error => {
-    console.error('Error making Square order:', error.response.data);
-    res.status(500).json({ error: error.response.data });
-  });
-});
-
-// Example: Use Stuart API (Create delivery)
-app.get('/stuart-delivery', (req, res) => {
-  const stuartUrl = 'https://api.stuart.com/v2/oauth/token';
-  
-  axios.post(stuartUrl, {
-    client_id: stuartClientId,
-    client_secret: stuartClientSecret,
-    grant_type: 'client_credentials'
-  })
-  .then(response => {
-    console.log('Stuart API Access Token:', response.data.access_token);
-    res.json({ accessToken: response.data.access_token });
-  })
-  .catch(error => {
-    console.error('Error getting Stuart access token:', error.response.data);
-    res.status(500).json({ error: error.response.data });
-  });
-});
-
-// Handle Square Webhook (POST request from Square)
+// Square webhook route - this is where Square sends its order updates
 app.post('/webhook', (req, res) => {
   const event = req.body; // The event body sent by Square
   console.log('Received webhook event: ', event);
 
-  // You can handle the event based on the type (order.created, order.updated, etc.)
-  // Example: Trigger Stuart API or do something with the order data here
+  // Check if the event is an order creation event
   if (event.type === 'order.created') {
     const orderId = event.data.id;
     const locationId = event.data.location_id;
-    
-    // Call Stuart API or another action based on the order details
+
     console.log(`Received new order: ${orderId} at location: ${locationId}`);
 
-    // Example: Make a delivery request (This is just a placeholder, update it as needed)
-    // If needed, you can send this data to Stuart or process it further
+    // Wait for 15 minutes before creating the delivery in Stuart
+    setTimeout(async () => {
+      try {
+        console.log('15 minutes passed, requesting delivery from Stuart...');
+        
+        // Prepare delivery data for Stuart (replace with actual pickup/dropoff details)
+        const deliveryData = {
+          pickup: {
+            address: 'Pickup Address',  // Replace with actual pickup address
+            contact: 'Pickup Contact'   // Replace with actual pickup contact
+          },
+          dropoff: {
+            address: 'Dropoff Address', // Replace with actual dropoff address
+            contact: 'Dropoff Contact'  // Replace with actual dropoff contact
+          },
+          order_id: orderId,  // Link delivery to the Square order
+        };
+
+        // Request the delivery in Stuart
+        const stuartResponse = await axios.post('https://api.stuart.com/v2/deliveries', deliveryData, {
+          headers: {
+            'Authorization': `Bearer ${stuartClientSecret}`,
+            'Content-Type': 'application/json',
+          },
+        });
+
+        console.log('Delivery created in Stuart:', stuartResponse.data);
+      } catch (error) {
+        console.error('Error creating delivery in Stuart:', error.response ? error.response.data : error);
+      }
+    }, 900000);  // 15 minutes delay (900,000 milliseconds)
   }
 
   // Send a response back to Square indicating successful receipt of the webhook
   res.status(200).send('Webhook received');
+});
+
+// Handle Stuart Webhook (POST request for delivery status updates)
+app.post('/stuart-webhook', (req, res) => {
+  const deliveryUpdate = req.body;  // The event body sent by Stuart
+  console.log('Received Stuart delivery status update: ', deliveryUpdate);
+
+  // Check the status of the delivery and process accordingly
+  if (deliveryUpdate.status === 'delivered') {
+    const orderId = deliveryUpdate.order_id;  // Assuming the order_id is passed from Stuart
+
+    // Here, you can update Square's order status to "delivered" (example)
+    console.log(`Order ${orderId} has been delivered`);
+
+    // Optional: You can use Square API here to update the order status in Square (if needed)
+  }
+
+  // Send a response back to Stuart indicating successful receipt of the webhook
+  res.status(200).send('Status update received');
 });
 
 // Start the server and listen on a specific port
