@@ -4,7 +4,13 @@ require('dotenv').config();
 // Import required modules
 const express = require('express');
 const axios = require('axios');
+const bodyParser = require('body-parser');
+
+// Initialize Express app
 const app = express();
+
+// Use bodyParser to parse JSON requests
+app.use(bodyParser.json());
 
 // Access the environment variables
 const squareAccessToken = process.env.SQUARE_ACCESS_TOKEN;
@@ -18,42 +24,15 @@ app.get('/', (req, res) => {
   res.send('Server is running!');
 });
 
-// Example: Use Square API (Square API call)
-app.get('/square-order', (req, res) => {
-  const url = `https://connect.squareup.com/v2/orders`;
+// Webhook route to receive Square orders
+app.post('/webhook', (req, res) => {
+  // Log the incoming webhook data (Square order created)
+  console.log('Received Square order:', req.body);
   
-  axios.post(url, {
-    headers: {
-      'Authorization': `Bearer ${squareAccessToken}`,
-      'Content-Type': 'application/json'
-    },
-    data: {
-      // Example order data here
-      order: {
-        id: "12345",
-        location_id: "your-location-id",
-        line_items: [
-          {
-            name: "Sample Item",
-            quantity: 1,
-            base_price_money: { amount: 100, currency: 'USD' }
-          }
-        ]
-      }
-    }
-  })
-  .then(response => {
-    console.log('Square order response:', response.data);
-    res.json(response.data);
-  })
-  .catch(error => {
-    console.error('Error making Square order:', error.response.data);
-    res.status(500).json({ error: error.response.data });
-  });
-});
-
-// Example: Use Stuart API (Create delivery)
-app.get('/stuart-delivery', (req, res) => {
+  // You can add further logic here to process the order
+  const orderData = req.body; // Square order details
+  
+  // Example of forwarding to Stuart (you can modify this to meet your needs)
   const stuartUrl = 'https://api.stuart.com/v2/oauth/token';
   
   axios.post(stuartUrl, {
@@ -61,18 +40,43 @@ app.get('/stuart-delivery', (req, res) => {
     client_secret: stuartClientSecret,
     grant_type: 'client_credentials'
   })
-  .then(response => {
-    console.log('Stuart API Access Token:', response.data.access_token);
-    res.json({ accessToken: response.data.access_token });
+  .then(stuartResponse => {
+    const stuartAccessToken = stuartResponse.data.access_token;
+    
+    // Now create a delivery request using the Stuart API
+    const deliveryData = {
+      // Use the Square order details to create a delivery request
+      pickup_address: { /* Example pickup address from order */ },
+      dropoff_address: { /* Example dropoff address from order */ },
+      items: [
+        { name: 'Sample Item', quantity: 1, price: 100 } // Add items from the order
+      ],
+    };
+    
+    // Send the delivery request to Stuart
+    axios.post('https://api.stuart.com/v2/jobs', deliveryData, {
+      headers: {
+        'Authorization': `Bearer ${stuartAccessToken}`,
+        'Content-Type': 'application/json'
+      }
+    })
+    .then(response => {
+      console.log('Delivery successfully created with Stuart:', response.data);
+      res.status(200).send('Order received and delivery created.');
+    })
+    .catch(error => {
+      console.error('Error creating delivery with Stuart:', error);
+      res.status(500).send('Error creating delivery with Stuart');
+    });
   })
   .catch(error => {
-    console.error('Error getting Stuart access token:', error.response.data);
-    res.status(500).json({ error: error.response.data });
+    console.error('Error getting Stuart access token:', error);
+    res.status(500).send('Error authenticating with Stuart');
   });
 });
 
 // Start the server and listen on a specific port
-const port = process.env.PORT || 3000;
+const port = process.env.PORT || 8080;  // Railway assigns a port automatically
 app.listen(port, () => {
   console.log(`Server is running on port ${port}`);
 });
